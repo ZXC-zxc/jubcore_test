@@ -1,6 +1,12 @@
 import 'package:flutter/material.dart';
+import './Products/JProductHDPage.dart';
+import 'package:jwallet_core/jwallet_core.dart' as $core;
+import 'dart:convert';
 
-void main() => runApp(MyApp());
+void main(){
+  $core.init();
+  runApp(MyApp());
+}
 
 class MyApp extends StatelessWidget {
   // This widget is the root of your application.
@@ -43,17 +49,31 @@ class MyHomePage extends StatefulWidget {
   _MyHomePageState createState() => _MyHomePageState();
 }
 
+ 
 class _MyHomePageState extends State<MyHomePage> {
-  int _counter = 0;
 
-  void _incrementCounter() {
+  //根据不同的类型，进入不同的页面
+  Widget _createProductPage(String productKey){
+    Map<String,dynamic> jKey = json.decode(productKey);
+    switch ($core.ProductType.values[jKey["pType"]]) {
+      case $core.ProductType.HD:
+      case $core.ProductType.JubiterBlade:
+      case $core.ProductType.Import:
+      return new JProductHDPage(productKey: productKey); 
+      default:
+      //应该返回一个异常页面，先这样
+      return new JProductHDPage(productKey: productKey); 
+    } 
+  }
+
+  void _newProduct() async{
+    await $core.getJProductManager().newProductHD("HDWallet1","gauge hole clog property soccer idea cycle stadium utility slice hold chief", "","1234","提示1234");
     setState(() {
       // This call to setState tells the Flutter framework that something has
       // changed in this State, which causes it to rerun the build method below
       // so that the display can reflect the updated values. If we changed
       // _counter without calling setState(), then the build method would not be
       // called again, and so nothing would appear to happen.
-      _counter++;
     });
   }
 
@@ -74,35 +94,48 @@ class _MyHomePageState extends State<MyHomePage> {
       body: Center(
         // Center is a layout widget. It takes a single child and positions it
         // in the middle of the parent.
-        child: Column(
-          // Column is also a layout widget. It takes a list of children and
-          // arranges them vertically. By default, it sizes itself to fit its
-          // children horizontally, and tries to be as tall as its parent.
-          //
-          // Invoke "debug painting" (press "p" in the console, choose the
-          // "Toggle Debug Paint" action from the Flutter Inspector in Android
-          // Studio, or the "Toggle Debug Paint" command in Visual Studio Code)
-          // to see the wireframe for each widget.
-          //
-          // Column has various properties to control how it sizes itself and
-          // how it positions its children. Here we use mainAxisAlignment to
-          // center the children vertically; the main axis here is the vertical
-          // axis because Columns are vertical (the cross axis would be
-          // horizontal).
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: <Widget>[
-            Text(
-              'You have pushed the button this many times:',
-            ),
-            Text(
-              '$_counter',
-              style: Theme.of(context).textTheme.display1,
-            ),
-          ],
-        ),
+        child:FutureBuilder<List<String>>(
+        future: $core.getJProductManager().enumProductsByType(),
+        builder: (BuildContext context, AsyncSnapshot snapshot) {
+          // 请求已结束
+          if (snapshot.connectionState == ConnectionState.done) {
+            if (snapshot.hasError) {
+              // 请求失败，显示错误
+              return Text("Error: ${snapshot.error}");
+            } else {
+              // 请求成功，显示数据
+              return ListView.builder(
+                itemCount: snapshot.data.length,
+                itemBuilder: (context, index) {
+                  return Padding(
+                    padding: EdgeInsets.fromLTRB(20, 20, 20, 0),
+                    child: RaisedButton(
+                      padding: EdgeInsets.symmetric(vertical: 13),
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(4),
+                      ),
+                      onPressed: () {
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => _createProductPage(snapshot.data[index])
+                            ),
+                          );
+                        },
+                      child: Text(snapshot.data[index]),
+                    ),
+                  );
+                },
+              );
+            }
+          } else {
+            // 请求未结束，显示loading
+            return CircularProgressIndicator();
+          }
+          },)
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: _incrementCounter,
+        onPressed: _newProduct,
         tooltip: 'Increment',
         child: Icon(Icons.add),
       ), // This trailing comma makes auto-formatting nicer for build methods.
